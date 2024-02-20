@@ -66,10 +66,10 @@ class Service : SuspendingComplicationDataSourceService(), SensorEventListener {
         lateinit var geofencingClient: GeofencingClient
 
         lateinit var sensorManager: SensorManager
+
         var accelerometerReading = FloatArray(3)
         var magnetometerReading = FloatArray(3)
 
-        var Fate: Boolean = true
         var initLoc: Boolean = false
         var initDest: Boolean = false
 
@@ -82,7 +82,7 @@ class Service : SuspendingComplicationDataSourceService(), SensorEventListener {
                     thisContext,
                     0,
                     intent,
-                    PendingIntent.FLAG_IMMUTABLE
+                    PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
                 )
             }
             return geofencePendingIntent
@@ -94,7 +94,7 @@ class Service : SuspendingComplicationDataSourceService(), SensorEventListener {
 
     private fun doSensors() {
 
-        sensorManager = applicationContext.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        sensorManager = this.getSystemService(Context.SENSOR_SERVICE) as SensorManager
 
         sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.also { accelerometer ->
             sensorManager.registerListener(
@@ -136,7 +136,6 @@ class Service : SuspendingComplicationDataSourceService(), SensorEventListener {
     ) {
         Log.d(TAG, "onComplicationActivated(): $complicationInstanceId")
 
-        Fate = true
         doSensors()
         serviceIntent = Intent(applicationContext, LocationUpdatesService::class.java)
         startService(serviceIntent)

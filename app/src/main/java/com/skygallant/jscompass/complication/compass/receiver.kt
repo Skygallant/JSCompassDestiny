@@ -61,10 +61,9 @@ class Receiver : BroadcastReceiver() {
                     bearing = (bearing - heading) * -1
                     bearing = (360 - bearing) % 360
                 } else {
-                    if (Service.Fate) {
+                    if (destiny.provider.toString() == "Google Maps API") {
                         WorkManager.getInstance(gotCon)
                             .enqueue(OneTimeWorkRequestBuilder<DestinyWorker>().build())
-                        Service.Fate = false
                     }
                     val text = "Fate"
                     val duration = Toast.LENGTH_SHORT
