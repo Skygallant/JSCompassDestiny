@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">JS Compass Compass</string>
+    <string name="complications_label">Spinner</string>
+    <string name="GEOFENCE_RADIUS_IN_METERS">100</string>
+</resources>
