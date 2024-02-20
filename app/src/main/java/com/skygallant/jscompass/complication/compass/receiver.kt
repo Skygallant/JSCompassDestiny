@@ -7,6 +7,8 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.hardware.GeomagneticField
+import android.hardware.SensorManager
 import android.location.Location
 import android.util.Log
 import android.widget.Toast
@@ -26,19 +28,38 @@ import kotlinx.coroutines.launch
 
 class Receiver : BroadcastReceiver() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-
+    private fun piFun(x: Float): Float {
+        val magic: Float = 180f / kotlin.math.PI.toFloat()
+        return x * magic
+    }
     private fun doCompass(gotCon: Context): Int {
         var bearing = 0f
+        val rotationMatrix = FloatArray(9)
+        val orientationAngles = FloatArray(3)
+
+        SensorManager.getRotationMatrix(rotationMatrix, null, Service.accelerometerReading, Service.magnetometerReading)
+        SensorManager.getOrientation(rotationMatrix, orientationAngles)
+
+        var heading = orientationAngles[0]
+        heading = piFun(heading)
 
         if (checkPermission(gotCon)) {
             if (initLoc) {
                 if (initDest) {
                     bearing = myLocation.bearingTo(destiny)
-                    bearing = (360 - bearing) % 360
                     val text = destiny.provider.toString()
                     val duration = Toast.LENGTH_SHORT
                     val toast = Toast.makeText(gotCon, text, duration)
                     toast.show()
+                    val geoField = GeomagneticField(
+                        myLocation.latitude.toFloat(),
+                        myLocation.longitude.toFloat(),
+                        myLocation.altitude.toFloat(),
+                        System.currentTimeMillis()
+                    )
+                    heading += geoField.declination
+                    bearing = (bearing - heading) * -1
+                    bearing = (360 - bearing) % 360
                 } else {
                     if (Service.Fate) {
                         WorkManager.getInstance(gotCon)

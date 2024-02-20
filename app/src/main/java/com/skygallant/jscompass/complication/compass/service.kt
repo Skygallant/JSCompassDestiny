@@ -4,6 +4,10 @@ import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.util.Log
 import androidx.wear.watchface.complications.data.ComplicationData
 import androidx.wear.watchface.complications.data.ComplicationType
@@ -52,7 +56,7 @@ val myUrgentLocationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACC
 **/
 
 
-class Service : SuspendingComplicationDataSourceService() {
+class Service : SuspendingComplicationDataSourceService(), SensorEventListener {
 
 
 
@@ -60,6 +64,11 @@ class Service : SuspendingComplicationDataSourceService() {
     companion object {
         lateinit var serviceIntent: Intent
         lateinit var geofencingClient: GeofencingClient
+
+        lateinit var sensorManager: SensorManager
+        var accelerometerReading = FloatArray(3)
+        var magnetometerReading = FloatArray(3)
+
         var Fate: Boolean = true
         var initLoc: Boolean = false
         var initDest: Boolean = false
@@ -85,6 +94,26 @@ class Service : SuspendingComplicationDataSourceService() {
 
     private fun doSensors() {
 
+        sensorManager = applicationContext.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+
+        sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.also { accelerometer ->
+            sensorManager.registerListener(
+                this,
+                accelerometer,
+                SensorManager.SENSOR_DELAY_NORMAL,
+                SensorManager.SENSOR_DELAY_UI
+            )
+        }
+        sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)?.also { magneticField ->
+            sensorManager.registerListener(
+                this,
+                magneticField,
+                SensorManager.SENSOR_DELAY_NORMAL,
+                SensorManager.SENSOR_DELAY_UI
+            )
+        }
+        Log.d(TAG, "tracking mag")
+
         if(Receiver.checkPermission(applicationContext)) {
             Log.d(TAG, "tracking pos")
             geofencingClient = LocationServices.getGeofencingClient(this)
@@ -92,6 +121,8 @@ class Service : SuspendingComplicationDataSourceService() {
     }
 
     private fun shutdownSensors() {
+        sensorManager.unregisterListener(this)
+        Log.d(TAG, "shutdown mag")
         if(Receiver.checkPermission(applicationContext)) {
             geofencingClient.removeGeofences(getGeoIntent(applicationContext))
             Log.d(TAG, "shutdown fence")
@@ -175,6 +206,32 @@ class Service : SuspendingComplicationDataSourceService() {
         shutdownSensors()
         stopService(serviceIntent)
 
+    }
+
+    override fun onSensorChanged(eventCall: SensorEvent?) {
+        if (eventCall != null) {
+            if (eventCall.sensor.type == Sensor.TYPE_ACCELEROMETER) {
+                System.arraycopy(
+                    eventCall.values,
+                    0,
+                    accelerometerReading,
+                    0,
+                    accelerometerReading.size
+                )
+            } else if (eventCall.sensor.type == Sensor.TYPE_MAGNETIC_FIELD) {
+                System.arraycopy(
+                    eventCall.values,
+                    0,
+                    magnetometerReading,
+                    0,
+                    magnetometerReading.size
+                )
+            }
+        }
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+        //
     }
 
 }
