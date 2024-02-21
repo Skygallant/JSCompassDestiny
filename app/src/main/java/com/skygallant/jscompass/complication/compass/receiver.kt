@@ -9,22 +9,20 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.hardware.GeomagneticField
 import android.hardware.SensorManager
-import android.location.Location
 import android.util.Log
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
-import androidx.datastore.preferences.core.edit
 import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
-import com.skygallant.jscompass.complication.compass.Service.Companion.initDest
-import com.skygallant.jscompass.complication.compass.Service.Companion.initLoc
-import com.skygallant.jscompass.complication.compass.data.BEARING_KEY
-import com.skygallant.jscompass.complication.compass.data.dataStore
+import com.skygallant.jscompass.complication.compass.data.complicationsDataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 class Receiver : BroadcastReceiver() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -43,25 +41,58 @@ class Receiver : BroadcastReceiver() {
         var heading = orientationAngles[0]
         heading = piFun(heading)
 
+        val isLoc = runBlocking {
+            gotCon.complicationsDataStore.data
+                .map { complicationsDataStore ->
+                    complicationsDataStore.initLoc
+                }
+                .first()
+        }
+
+        val isDest = runBlocking {
+            gotCon.complicationsDataStore.data
+                .map { complicationsDataStore ->
+                    complicationsDataStore.initDest
+                }
+                .first()
+        }
+
+        val thisLocation = runBlocking {
+            gotCon.complicationsDataStore.data
+                .map { complicationsDataStore ->
+                    complicationsDataStore.myLocation
+                }
+                .first()
+        }
+
+        val thisDestiny = runBlocking {
+            gotCon.complicationsDataStore.data
+                .map { complicationsDataStore ->
+                    complicationsDataStore.destiny
+                }
+                .first()
+        }
+
         if (checkPermission(gotCon)) {
-            if (initLoc) {
-                if (initDest) {
-                    bearing = myLocation.bearingTo(destiny)
-                    val text = destiny.provider.toString()
+            if (isLoc) {
+                if (isDest) {
+                    bearing = thisLocation.bearingTo(thisDestiny)
+                    val text = thisDestiny.provider.toString()
                     val duration = Toast.LENGTH_SHORT
                     val toast = Toast.makeText(gotCon, text, duration)
                     toast.show()
                     val geoField = GeomagneticField(
-                        myLocation.latitude.toFloat(),
-                        myLocation.longitude.toFloat(),
-                        myLocation.altitude.toFloat(),
+                        thisLocation.latitude.toFloat(),
+                        thisLocation.longitude.toFloat(),
+                        thisLocation.altitude.toFloat(),
                         System.currentTimeMillis()
                     )
                     heading += geoField.declination
                     bearing = (bearing - heading) * -1
                     bearing = (360 - bearing) % 360
                 } else {
-                    if (destiny.provider.toString() == "Google Maps API") {
+                    //Log.d(TAG, thisDestiny.provider.toString())
+                    if (thisDestiny.provider.toString() == "Google Maps API") {
                         WorkManager.getInstance(gotCon)
                             .enqueue(OneTimeWorkRequestBuilder<DestinyWorker>().build())
                     }
@@ -102,14 +133,10 @@ class Receiver : BroadcastReceiver() {
         // Launches coroutine to update the DataStore counter value.
         scope.launch {
             try {
-                context.dataStore.edit { preferences ->
-
-
-
-                    preferences[BEARING_KEY] = doCompass(context)
-
-
-
+                context.complicationsDataStore.updateData {
+                    it.copy(
+                        bearingKey = doCompass(context)
+                    )
                 }
 
                 // Request an update for the complication that has just been tapped, that is,
@@ -132,10 +159,8 @@ class Receiver : BroadcastReceiver() {
     }
 
     companion object {
-        var myLocation = Location("Google Maps API")
-        var destiny = Location("Google Maps API")
-
         fun checkPermission(thisContext: Context): Boolean {
+            Log.d(TAG, "CHECK")
             return ActivityCompat.checkSelfPermission(
                 thisContext,
                 Manifest.permission.ACCESS_BACKGROUND_LOCATION

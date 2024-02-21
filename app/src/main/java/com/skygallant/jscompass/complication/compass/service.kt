@@ -17,8 +17,7 @@ import androidx.wear.watchface.complications.datasource.ComplicationRequest
 import androidx.wear.watchface.complications.datasource.SuspendingComplicationDataSourceService
 import com.google.android.gms.location.GeofencingClient
 import com.google.android.gms.location.LocationServices
-import com.skygallant.jscompass.complication.compass.data.BEARING_KEY
-import com.skygallant.jscompass.complication.compass.data.dataStore
+import com.skygallant.jscompass.complication.compass.data.complicationsDataStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.util.Locale
@@ -69,9 +68,6 @@ class Service : SuspendingComplicationDataSourceService(), SensorEventListener {
 
         var accelerometerReading = FloatArray(3)
         var magnetometerReading = FloatArray(3)
-
-        var initLoc: Boolean = false
-        var initDest: Boolean = false
 
         fun getGeoIntent(thisContext: Context): PendingIntent {
             val geofencePendingIntent: PendingIntent by lazy {
@@ -168,9 +164,9 @@ class Service : SuspendingComplicationDataSourceService(), SensorEventListener {
                 request.complicationInstanceId
             )
 
-        val number: Int = applicationContext.dataStore.data
-            .map { preferences ->
-                preferences[BEARING_KEY] ?: 0
+        val number: Int = applicationContext.complicationsDataStore.data
+            .map { complicationsDataStore ->
+                complicationsDataStore.bearingKey
             }
             .first()
 
