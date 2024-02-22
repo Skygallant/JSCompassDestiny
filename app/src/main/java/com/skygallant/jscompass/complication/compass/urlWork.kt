@@ -18,72 +18,65 @@ import java.net.URL
 
 class DestinyWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
 
-    private var geofenceList = mutableListOf<Geofence>()
 
-    private fun getGeofencingRequest(): GeofencingRequest {
-        return GeofencingRequest.Builder().apply {
-            setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER)
-            addGeofences(geofenceList)
-        }.build()
-    }
+    data class PlusCode(
+        val compound_code: String,
+        val global_code: String
+    )
 
-    override fun doWork(): Result {
+    data class Photo(
+        val height: Int,
+        val html_attributions: List<String>,
+        val photo_reference: String,
+        val width: Int
+    )
 
-        data class PlusCode(
-            val compound_code: String,
-            val global_code: String
-        )
+    data class OpeningHours(
+        val open_now: Boolean
+    )
 
-        data class Photo(
-            val height: Int,
-            val html_attributions: List<String>,
-            val photo_reference: String,
-            val width: Int
-        )
+    data class Viewport(
+        val northeast: android.location.Location,
+        val southwest: android.location.Location
+    )
 
-        data class OpeningHours(
-            val open_now: Boolean
-        )
+    data class Location(
+        val lat: Double,
+        val lng: Double
+    )
 
-        data class Viewport(
-            val northeast: Location,
-            val southwest: Location
-        )
+    data class Geometry(
+        val location: Location,
+        val viewport: Viewport
+    )
 
-        data class Location(
-            val lat: Double,
-            val lng: Double
-        )
+    data class Result(
+        val business_status: String,
+        val geometry: Geometry,
+        val icon: String,
+        val name: String,
+        val opening_hours: OpeningHours,
+        val photos: List<Photo>,
+        val place_id: String,
+        val plus_code: PlusCode,
+        val rating: Double,
+        val reference: String,
+        val scope: String,
+        val types: List<String>,
+        val user_ratings_total: Int,
+        val vicinity: String
+    )
 
-        data class Geometry(
-            val location: Location,
-            val viewport: Viewport
-        )
+    data class TopLevel(
+        val html_attributions: List<String>,
+        val next_page_token: String,
+        val results: List<Result>,
+        val status: String
+    )
 
-        data class Result(
-            val business_status: String,
-            val geometry: Geometry,
-            val icon: String,
-            val name: String,
-            val opening_hours: OpeningHours,
-            val photos: List<Photo>,
-            val place_id: String,
-            val plus_code: PlusCode,
-            val rating: Double,
-            val reference: String,
-            val scope: String,
-            val types: List<String>,
-            val user_ratings_total: Int,
-            val vicinity: String
-        )
 
-        data class TopLevel(
-            val html_attributions: List<String>,
-            val next_page_token: String,
-            val results: List<Result>,
-            val status: String
-        )
 
+    override fun doWork(): ListenableWorker.Result {
 
         Log.d(TAG, "url")
 
@@ -113,7 +106,7 @@ class DestinyWorker(context: Context, params: WorkerParameters) : Worker(context
         Log.d(TAG, thisLocation.longitude.toString())
         Log.d(TAG, thisLocation.provider.toString())
         Log.d(TAG, "random")
-        val myDestiny = mapsXML.results.random()
+        myDestiny = mapsXML.results.random()
 
         Log.d(TAG, "output")
 
@@ -137,37 +130,61 @@ class DestinyWorker(context: Context, params: WorkerParameters) : Worker(context
                 )
             }
         }
-
-        Log.d(TAG, "geofencing")
-        geofenceList.clear()
-
-        geofenceList.add(
-            Geofence.Builder()
-                // Set the request ID of the geofence. This is a string to identify this
-                // geofence.
-                .setRequestId(myDestiny.name)
-
-                // Set the circular region of this geofence.
-                .setCircularRegion(
-                    myDestiny.geometry.location.lat,
-                    myDestiny.geometry.location.lng,
-                    R.string.GEOFENCE_RADIUS_IN_METERS.toFloat()
-                )
-
-                // Set the transition types of interest. Alerts are only generated for these
-                // transition. We track entry and exit transitions in this sample.
-                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER)
-
-                // Create the geofence.
-                .build()
-        )
-        if (Receiver.checkPermission(applicationContext)) {
-            Service.geofencingClient.addGeofences(
-                getGeofencingRequest(),
-                Service.getGeoIntent(applicationContext))
-        } else {
-            Log.d(TAG, "no geofence")
-        }
+        fencemein(applicationContext)
         return ListenableWorker.Result.success()
+    }
+
+    companion object {
+
+        private fun getGeofencingRequest(): GeofencingRequest {
+            return GeofencingRequest.Builder().apply {
+                setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER)
+                addGeofences(geofenceList)
+            }.build()
+        }
+
+        private lateinit var myDestiny: Result
+        private var geofenceList = mutableListOf<Geofence>()
+        fun fencemein(gotCon: Context) {
+            var thisGeo = Location("init")
+            runBlocking {
+                thisGeo = gotCon.complicationsDataStore.data
+                    .map { complicationsDataStore ->
+                        complicationsDataStore.destiny
+                    }
+                    .first()
+                Log.d(TAG, "geofencing")
+            }
+            geofenceList.clear()
+
+            geofenceList.add(
+                Geofence.Builder()
+                    // Set the request ID of the geofence. This is a string to identify this
+                    // geofence.
+                    .setRequestId(thisGeo.provider!!)
+
+                    // Set the circular region of this geofence.
+                    .setCircularRegion(
+                        thisGeo.latitude,
+                        thisGeo.longitude,
+                        R.string.GEOFENCE_RADIUS_IN_METERS.toFloat()
+                    )
+
+                    // Set the transition types of interest. Alerts are only generated for these
+                    // transition. We track entry and exit transitions in this sample.
+                    .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER)
+
+                    // Create the geofence.
+                    .build()
+            )
+            if (Receiver.checkPermission(gotCon)) {
+                Service.geofencingClient.addGeofences(
+                    getGeofencingRequest(),
+                    Service.getGeoIntent(gotCon)
+                )
+            } else {
+                Log.d(TAG, "no geofence")
+            }
+        }
     }
 }

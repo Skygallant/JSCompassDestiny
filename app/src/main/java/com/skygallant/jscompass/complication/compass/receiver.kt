@@ -93,6 +93,7 @@ class Receiver : BroadcastReceiver() {
                 } else {
                     //Log.d(TAG, thisDestiny.provider.toString())
                     if (thisDestiny.provider.toString() == "Google Maps API") {
+                        Log.d(TAG, "queuing work")
                         WorkManager.getInstance(gotCon)
                             .enqueue(OneTimeWorkRequestBuilder<DestinyWorker>().build())
                     }
@@ -116,6 +117,11 @@ class Receiver : BroadcastReceiver() {
 
 
         Log.d(TAG, "bearing: $bearing")
+        if (heading > 360f) {
+            heading -= 360f
+        } else if (heading < 0) {
+            heading += 360f
+        }
         return bearing.toInt()
     }
 
