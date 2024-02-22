@@ -6,7 +6,12 @@ import android.location.Location
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
-import com.google.android.gms.location.*
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.skygallant.jscompass.complication.compass.data.complicationsDataStore
 import kotlinx.coroutines.runBlocking
 import java.util.concurrent.TimeUnit
@@ -23,14 +28,14 @@ class LocationUpdatesService : Service() {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         var x = Location("foo")
         if (Receiver.checkPermission(this)) {
-            fusedLocationClient.lastLocation
-                .addOnSuccessListener {
-                    x = it
-                    Log.d(TAG, "foo $x")
-                    Log.d(TAG, "foo ${x.latitude}")
-                    Log.d(TAG, "foo ${x.longitude}")
-                }
             runBlocking {
+                fusedLocationClient.lastLocation
+                    .addOnSuccessListener {
+                        x = it
+                        Log.d(TAG, "foo $x")
+                        Log.d(TAG, "foo ${x.latitude}")
+                        Log.d(TAG, "foo ${x.longitude}")
+                    }
                 applicationContext.complicationsDataStore.updateData {
                     it.copy(
                         myLocation = x,
