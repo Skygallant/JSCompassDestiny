@@ -136,15 +136,16 @@ class DestinyWorker(context: Context, params: WorkerParameters) : Worker(context
 
     companion object {
 
+        private lateinit var myDestiny: Result
+        private lateinit var geofenceActual: Geofence
+
         private fun getGeofencingRequest(): GeofencingRequest {
             return GeofencingRequest.Builder().apply {
                 setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER)
-                addGeofences(geofenceList)
+                addGeofence(geofenceActual)
             }.build()
         }
 
-        private lateinit var myDestiny: Result
-        private var geofenceList = mutableListOf<Geofence>()
         fun fencemein(gotCon: Context) {
             var thisGeo = Location("init")
             runBlocking {
@@ -155,28 +156,28 @@ class DestinyWorker(context: Context, params: WorkerParameters) : Worker(context
                     .first()
                 Log.d(TAG, "geofencing")
             }
-            geofenceList.clear()
 
-            geofenceList.add(
-                Geofence.Builder()
-                    // Set the request ID of the geofence. This is a string to identify this
-                    // geofence.
-                    .setRequestId(thisGeo.provider!!)
+            geofenceActual = Geofence.Builder()
+                // Set the request ID of the geofence. This is a string to identify this
+                // geofence.
+                .setRequestId(thisGeo.provider!!)
 
-                    // Set the circular region of this geofence.
-                    .setCircularRegion(
-                        thisGeo.latitude,
-                        thisGeo.longitude,
-                        R.string.GEOFENCE_RADIUS_IN_METERS.toFloat()
-                    )
+                // Set the circular region of this geofence.
+                .setCircularRegion(
+                    thisGeo.latitude,
+                    thisGeo.longitude,
+                    R.string.GEOFENCE_RADIUS_IN_METERS.toFloat()
+                )
 
-                    // Set the transition types of interest. Alerts are only generated for these
-                    // transition. We track entry and exit transitions in this sample.
-                    .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER)
+                .setExpirationDuration(Geofence.NEVER_EXPIRE)
 
-                    // Create the geofence.
-                    .build()
-            )
+                // Set the transition types of interest. Alerts are only generated for these
+                // transition. We track entry and exit transitions in this sample.
+                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER)
+
+                // Create the geofence.
+                .build()
+
             if (Receiver.checkPermission(gotCon)) {
                 Service.geofencingClient.addGeofences(
                     getGeofencingRequest(),

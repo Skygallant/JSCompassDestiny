@@ -61,9 +61,18 @@
             </intent-filter>
         </service>
 
-        <receiver android:name=".Receiver" />
+        <receiver android:name=".Receiver"
+            android:enabled="true" >
+        </receiver>
 
-        <receiver android:name=".GeofenceReceiver" />
+        <receiver android:name=".GeofenceReceiver"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.ACCESS_BACKGROUND_LOCATION" >
+            <intent-filter>
+                <action android:name="com.example.ACTION_RECEIVE_GEOFENCE"/>
+            </intent-filter>
+        </receiver>
 
         <receiver android:name=".Reboot"
             android:enabled="true"

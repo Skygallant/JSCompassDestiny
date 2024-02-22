@@ -13,6 +13,8 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.skygallant.jscompass.complication.compass.data.complicationsDataStore
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import java.util.concurrent.TimeUnit
 
@@ -26,22 +28,30 @@ class LocationUpdatesService : Service() {
     }
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        var x = Location("foo")
+        var x: Location
         if (Receiver.checkPermission(this)) {
             runBlocking {
                 fusedLocationClient.lastLocation
-                    .addOnSuccessListener {
-                        x = it
+                    .addOnSuccessListener { location ->
+                        x = location
                         Log.d(TAG, "foo $x")
                         Log.d(TAG, "foo ${x.latitude}")
                         Log.d(TAG, "foo ${x.longitude}")
+
+                        runBlocking {
+                            applicationContext.complicationsDataStore.updateData {
+                                it.copy(
+                                    myLocation = x,
+                                    initLoc = true
+                                )
+                            }
+                            Log.d(TAG, "bar" + applicationContext.complicationsDataStore.data
+                                .map { complicationsDataStore ->
+                                    complicationsDataStore.myLocation
+                                }
+                                .first().latitude.toString())
+                        }
                     }
-                applicationContext.complicationsDataStore.updateData {
-                    it.copy(
-                        myLocation = x,
-                        initLoc = true
-                    )
-                }
             }
         }
         startLocationUpdates()
