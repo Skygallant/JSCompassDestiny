@@ -28,7 +28,7 @@ class LocationUpdatesService : Service() {
     }
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        var x: Location
+        var x = Location("foo")
         if (Receiver.checkPermission(this)) {
             runBlocking {
                 fusedLocationClient.lastLocation
